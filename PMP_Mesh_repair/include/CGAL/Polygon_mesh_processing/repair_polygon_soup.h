@@ -266,7 +266,7 @@ std::size_t split_pinched_polygons_in_polygon_soup(PointRange& points,
 #endif
 
         std::swap(polygon, split_polygon_1);
-        polygons.push_back(split_polygon_2);
+        polygons.push_back(std::move(split_polygon_2));
 
         ++new_polygons_n;
         break;
@@ -670,16 +670,19 @@ Polygon construct_canonical_polygon_with_markers(const Polygon& polygon,
 }
 
 // 'reversed' indicates whether the canonical polygon has the same order as input polygon.
-template <typename Traits, typename PointRange, typename Polygon>
-Polygon construct_canonical_polygon(const PointRange& points,
-                                    const Polygon& polygon,
-                                    bool& reversed,
-                                    const Traits& traits = Traits())
+template <typename Traits, typename PointRange, typename PolygonRef>
+std::remove_cv_t<std::remove_reference_t<PolygonRef>>
+construct_canonical_polygon(const PointRange& points,
+                            PolygonRef&& polygon,
+                            bool& reversed,
+                            const Traits& traits = Traits())
 {
+  using Polygon = std::remove_cv_t<std::remove_reference_t<PolygonRef>>;
+
   if(polygon.size() < 2)
   {
     reversed = false;
-    return polygon;
+    return std::forward<PolygonRef>(polygon);
   }
 
 
@@ -700,13 +703,14 @@ Polygon construct_canonical_polygon(const PointRange& points,
   return canonical_polygon;
 }
 
-template <typename Traits, typename PointRange, typename Polygon>
-Polygon construct_canonical_polygon(const PointRange& points,
-                                    const Polygon& polygon,
-                                    const Traits& traits = Traits())
+template <typename Traits, typename PointRange, typename PolygonRef>
+std::remove_cv_t<std::remove_reference_t<PolygonRef>>
+construct_canonical_polygon(const PointRange& points,
+                            PolygonRef&& polygon,
+                            const Traits& traits = Traits())
 {
   bool useless = false;
-  return construct_canonical_polygon(points, polygon, useless, traits);
+  return construct_canonical_polygon(points, std::forward<PolygonRef>(polygon), useless, traits);
 }
 
 template <typename PointRange, typename PolygonRange>
@@ -789,8 +793,8 @@ struct Duplicate_collector
   void dump(OutputIterator out)
   {
     typedef std::pair<const ValueType, std::vector<ValueType> > Pair_type;
-    for(const Pair_type& p : collections)
-      *out++ = p.second;
+    for(Pair_type& p : collections)
+      *out++ = std::move(p.second);
   }
 
   std::unordered_map<ValueType, std::vector<ValueType> > collections;
